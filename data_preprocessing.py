@@ -5,7 +5,10 @@ from typing import List, Union
 """ CONSTANTS"""
 input_file_path = 'data/raw/kjv.txt'
 output_file_path = 'data/processed/kjv.txt'
-vocab_file = 'data/processed/vocab.json'
+vocab_file_char = 'data/processed/vocab_char.json'
+vocab_file_word = 'data/processed/vocab_word.json'
+character_level = True
+vocab_file = vocab_file_char if character_level  else vocab_file_word
 
 def read_file(file_path: str) -> list:
     """Reads the input file and returns the list of lines.
@@ -36,7 +39,8 @@ def remove_reference(
 
     # Write the processed text to the output file
     with open(output_file_path, 'w') as f:
-        f.write(''.join(processed_lines))
+        preprocessed_text = ''.join(processed_lines)
+        f.write(preprocessed_text)
 
     return processed_lines
 
@@ -66,23 +70,23 @@ class Tokenizer:
         Returns:
             _type_: _description_
         """
-        
-        if character_level:
-            if os.path.exists(vocab_file):
-                with open(vocab_file, 'r') as f:
-                    self.string_to_token_mapper = json.load(f)
-                    vocabulary = list(self.string_to_token_mapper.keys())
-            else:
+
+        if os.path.exists(vocab_file):
+            with open(vocab_file, 'r') as f:
+                self.string_to_token_mapper = json.load(f)
+                vocabulary = list(self.string_to_token_mapper.keys())
+        else:
+            if character_level:
                 vocabulary = sorted(list(set("".join(documents))))
-                self.string_to_token_mapper = {string_: token for token, string_ in enumerate(vocabulary)}
+            self.string_to_token_mapper = {string_: token for token, string_ in enumerate(vocabulary)}
 
-            self.token_to_string_mapper = {token: string_ for token, string_ in enumerate(vocabulary)}
+        self.token_to_string_mapper = {token: string_ for token, string_ in enumerate(vocabulary)}
 
-            with open(vocab_file, 'w') as f:
-                json.dump(self.string_to_token_mapper, f, indent=4)
+        with open(vocab_file, 'w') as f:
+            json.dump(self.string_to_token_mapper, f, indent=4)
 
-            print(f'Vocabulary: {"".join(vocabulary)}')
-            print(f'Vocabulary size: {len(vocabulary)}')
+        print(f'Vocabulary: {"".join(vocabulary)}')
+        print(f'Vocabulary size: {len(vocabulary)}')
 
         return vocabulary
 
@@ -117,6 +121,6 @@ class Tokenizer:
 if __name__ == '__main__':
     processed_lines = remove_reference(input_file_path, output_file_path)
     # build vocabulary
-    tokenizer = Tokenizer(processed_lines, vocab_file)
+    tokenizer = Tokenizer(processed_lines, vocab_file, character_level)
     print(tokenizer.encode("This is tempatation"))
     print(tokenizer.decode(tokenizer.encode("This is tempatation")))
