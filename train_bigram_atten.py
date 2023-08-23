@@ -9,12 +9,12 @@ from data_preprocessing import (read_file,
 
 #############CONSTANTS###################
 train_split = 0.8
-batchsize = 8
-context = 16
-embedding_dims = 32
-num_heads = 4
+batchsize = 16
+context = 32
+embedding_dims = 48
+num_heads = 8
 lr = 1e-3
-epochs = 5000
+epochs = 10000
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 ################################
@@ -65,10 +65,15 @@ class Head(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
+    """
+    This is what I always misunderstood.
+    Each Head takes in the full embedding size as input and outputs (embedding/ n_heads)
+    """
 
     def __init__(self, n_embed, num_heads):
         super().__init__()
         self.head_size = n_embed // num_heads
+        # takes in the full embedding  as input
         self.heads = nn.ModuleList([Head(n_embed, self.head_size) for _ in range(num_heads)])
     
     def forward(self, x):
@@ -76,6 +81,9 @@ class MultiHeadAttention(nn.Module):
 
 
 class BigramLanguageAttentionModel(nn.Module):
+    """
+    (embedding_dims) -> (n_heads * (embedding_dims // n_heads)) ->  vocab_size
+    """
     def __init__(self, vocab_size, embedding_dims, num_heads):
         super(BigramLanguageAttentionModel, self).__init__()
         self.head_size = embedding_dims // num_heads
@@ -160,7 +168,7 @@ if __name__ == '__main__':
             print(f"Epoch: {steps} ", f"Loss: {loss.item():0.4f}")
 
     print("***************Training End *****************")
-    input_string = "What did Jesus say to the disciples"
+    input_string = "The Lord "
     sample_input = encode_input(input_string)
     num_to_generate = 2000
     pprint(m.generate_and_show(sample_input, num_to_generate)[0])
