@@ -14,6 +14,7 @@ context = 16
 embedding_dims = 32
 num_heads = 4
 lr = 1e-3
+epochs = 5000
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 ################################
@@ -145,8 +146,6 @@ if __name__ == '__main__':
     
     ########## MODELLING #############
     vocab_size = len(tokenizer.vocabulary)
-    epochs = 10000
-
     # because it is a bigram mode, embedding_dims = vocab_size  
     m = BigramLanguageAttentionModel(vocab_size, embedding_dims, num_heads).to(device)
     optimizer = torch.optim.Adam(m.parameters(), lr=lr)
@@ -161,6 +160,7 @@ if __name__ == '__main__':
             print(f"Epoch: {steps} ", f"Loss: {loss.item():0.4f}")
 
     print("***************Training End *****************")
-    sample_input = torch.zeros((1,1), dtype=torch.long).to(device)
+    input_string = "What did Jesus say to the disciples"
+    sample_input = encode_input(input_string)
     num_to_generate = 2000
     pprint(m.generate_and_show(sample_input, num_to_generate)[0])
