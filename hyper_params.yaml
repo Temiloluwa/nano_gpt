@@ -1,0 +1,19 @@
+## Data Prep ##
+dataset: kjv
+datasets:
+  kjv: 
+    input_file_path: data/raw/kjv.txt
+    processed_file_path: data/processed/kjv.txt
+    vocab_file: data/vocab/kjv.json
+
+## Hyper Params ##
+train_split: 0.8
+batchsize: 64
+context: 256
+n_heads:  8
+embedding_dims: 384
+lr: 0.0003
+dropout: 0.2
+n_heads: 6
+n_blocks: 6
+epochs: 5000
