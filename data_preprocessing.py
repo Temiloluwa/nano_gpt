@@ -1,66 +1,69 @@
 import os
 import json
+import torch
 from typing import List, Union
 
-""" CONSTANTS"""
-input_file_path = 'data/raw/kjv.txt'
-output_file_path = 'data/processed/kjv.txt'
-vocab_file_char = 'data/processed/vocab_char.json'
-vocab_file_word = 'data/processed/vocab_word.json'
-character_level = True
-vocab_file = vocab_file_char if character_level  else vocab_file_word
 
 def read_file(file_path: str) -> list:
     """Reads the input file and returns the list of lines.
     """
     with open(file_path, 'r') as f:
-        lines = f.readlines()
+        lines = f.read()
 
     return lines
 
 
-def remove_reference(
-    input_file_path: str,
-    output_file_path: str) -> list:
-    """ 
-    Removes verse reference from input file 
-    and writes the processed text to the output file.
-    """
-    with open(input_file_path, 'r') as f:
-        lines = f.readlines()[1:] # Skip the first line which is the header
+def process_data(input_file_path, 
+                processed_file_path,
+                dataset_name, 
+                vocab_file=None):
 
-    processed_lines = []
-    for line in lines:
-        # Split each line into verse reference and text content
-        parts = line.split(' ', 1)
-        if len(parts) == 2:
-            # Append only the text content to the processed_lines list
-            processed_lines.append(parts[1])
 
-    # Write the processed text to the output file
-    with open(output_file_path, 'w') as f:
-        preprocessed_text = ''.join(processed_lines)
-        f.write(preprocessed_text)
+    def process_kjv(
+        input_file_path: str,
+        output_file_path: str,
+        vocab_file=None) -> list:
+        """ 
+        Removes verse reference from input file 
+        and writes the processed text to the output file.
+        """
+        with open(input_file_path, 'r') as f:
+            lines = f.readlines()[1:] # Skip the first line which is the header
 
-    return processed_lines
+        processed_lines = []
+        for line in lines:
+            # Split each line into verse reference and text content
+            parts = line.split(' ', 1)
+            if len(parts) == 2:
+                # Append only the text content to the processed_lines list
+                processed_lines.append(parts[1])
+
+        # Write the processed text to the output file
+        with open(output_file_path, 'w') as f:
+            preprocessed_text = ''.join(processed_lines)
+            f.write(preprocessed_text)
+
+    if dataset_name == "kjv":
+        process_fn = process_kjv
+
+    process_fn(input_file_path, processed_file_path, vocab_file)
+    print(f'processed file saved @ {processed_file_path}')
+
 
 
 class Tokenizer:
     
     def __init__(self,
-                documents,
-                vocab_file,
-                character_level: bool=True):
+                processed_data_path,
+                vocab_file):
         self.vocabulary = self.build_vocabulary(
-                        documents, 
-                        vocab_file,
-                        character_level)
+                        processed_data_path, 
+                        vocab_file)
         
     def build_vocabulary(
                         self,
-                        documents: list,
-                        vocab_file: str, 
-                        character_level: bool):
+                        processed_data_path: str,
+                        vocab_file: str):
         """Builds a vocabulary
 
         Args:
@@ -76,8 +79,7 @@ class Tokenizer:
                 self.string_to_token_mapper = json.load(f)
                 vocabulary = list(self.string_to_token_mapper.keys())
         else:
-            if character_level:
-                vocabulary = sorted(list(set("".join(documents))))
+            vocabulary = sorted(list(set(read_file(processed_data_path))))
             self.string_to_token_mapper = {string_: token for token, string_ in enumerate(vocabulary)}
 
         self.token_to_string_mapper = {token: string_ for token, string_ in enumerate(vocabulary)}
@@ -115,12 +117,4 @@ class Tokenizer:
         mapping = "".join([mapper[ch] for ch in tokens])
 
         return mapping
-            
- 
     
-if __name__ == '__main__':
-    processed_lines = remove_reference(input_file_path, output_file_path)
-    # build vocabulary
-    tokenizer = Tokenizer(processed_lines, vocab_file, character_level)
-    print(tokenizer.encode("This is tempatation"))
-    print(tokenizer.decode(tokenizer.encode("This is tempatation")))
