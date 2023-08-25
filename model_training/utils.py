@@ -4,7 +4,10 @@ import yaml
 import numpy as np
 import os
 import re
-from typing import Tuple
+import mlflow
+from mlflow import MlflowClient
+from mlflow.models import infer_signature
+from typing import Union, List, Tuple, Dict
 from .data_prep import *
 
 
@@ -54,6 +57,112 @@ if config.get('device', None):
 
 ######################################################
 
+def detach_tensor(torch_tensor: torch.Tensor) -> Union[torch.Tensor, 'numpy.ndarray']:
+    """
+    Detaches a PyTorch tensor from the computation graph and converts it to a NumPy array if on CUDA device.
+
+    Args:
+        torch_tensor (torch.Tensor): The input PyTorch tensor.
+
+    Returns:
+        Union[torch.Tensor, numpy.ndarray]: The detached tensor as a NumPy array if on CUDA, otherwise the original tensor.
+    """
+    if torch_tensor.device.type == 'cuda':
+        torch_tensor = torch_tensor.detach().cpu().numpy()
+    
+    return torch_tensor
+
+def get_model_signature(model: torch.nn.Module, data_tensor: torch.Tensor) -> str:
+    """
+    Gets the model signature based on provided input tensor.
+
+    Args:
+        model (torch.nn.Module): The PyTorch model.
+        data_tensor (torch.Tensor): Input data tensor.
+
+    Returns:
+        str: The model signature.
+    """
+    xb, yb = generate_batch(data_tensor, batchsize, context)
+    logits, _ = model(xb, yb)
+    xb = detach_tensor(xb)
+    logits = detach_tensor(logits.view(batchsize, context, -1))
+    signature = infer_signature(xb, logits)
+    return signature
+
+
+def get_or_create_experiment(experiment_name):
+    """
+    Get an existing experiment by name or create a new one if it doesn't exist.
+
+    Args:
+        experiment_name (str): The name of the experiment.
+
+    Returns:
+        int: The experiment ID.
+    """
+    existing_experiment = mlflow.get_experiment_by_name(experiment_name)
+    
+    if existing_experiment:
+        print(f"Using existing experiment '{experiment_name}' (ID: {existing_experiment.experiment_id})")
+        return existing_experiment.experiment_id
+    else:
+        new_experiment_id = mlflow.create_experiment(experiment_name)
+        print(f"Created new experiment '{experiment_name}' (ID: {new_experiment_id})")
+        return new_experiment_id
+
+
+def log_hyper_params(config: Dict[str, float]):
+    """
+    Logs hyperparameters to the active MLflow run.
+
+    Args:
+        config (Dict[str, float]): A dictionary containing hyperparameters.
+
+    Example:
+        config = {
+            'train_split': 0.8,
+            'batchsize': 32,
+            'context': 10,
+            'embedding_dims': 128,
+            'n_heads': 4,
+            'lr': 0.001,
+            'dropout': 0.2,
+            'n_blocks': 3,
+            'epochs': 100,
+            'eval_epochs': 10
+        }
+        log_hyper_params(config)
+    """
+    # Log hyperparameters
+    mlflow.log_param("train_split", config['train_split'])
+    mlflow.log_param("batchsize", config['batchsize'])
+    mlflow.log_param("context", config['context'])
+    mlflow.log_param("embedding_dims", config['embedding_dims'])
+    mlflow.log_param("n_heads", config['n_heads'])
+    mlflow.log_param("lr", config['lr'])
+    mlflow.log_param("dropout", config['dropout'])
+    mlflow.log_param("n_blocks", config['n_blocks'])
+    mlflow.log_param("epochs", config['epochs'])
+    mlflow.log_param("eval_epochs", config['eval_epochs'])
+
+
+def prepare_model(model, train_data, model_name) -> None:
+    """
+    Prepare an experiment for logging a model with a specified name and signature.
+
+    Args:
+        model (Any): The trained model.
+        train_data (Any): The training data used for the model.
+
+    Returns:
+        None
+    """
+    signature = get_model_signature(model, train_data)
+    mlflow.pytorch.log_model(model, model_name, signature=signature)
+    log_hyper_params(config)
+
+
 def get_data(tokenizer, processed_file_path:str, train_split:float=None):
     """
     Read processed documents and tokenize them.
@@ -73,14 +182,17 @@ def get_data(tokenizer, processed_file_path:str, train_split:float=None):
         documents = f.read()
 
     print(f"The document has: {len(documents)/1e6:.1f} M tokens")
+    mlflow.log_param("document_tokens", len(documents))
     documents_tensor = [torch.tensor(tokenizer.encode(doc), dtype=torch.long) for doc in documents]
 
     if train_split:
         split = int(train_split * len(documents_tensor)) 
         train_tensor = documents_tensor[:split]
         print(f"The train set has: {len(train_tensor)/1e6:.1f} M tokens")
+        mlflow.log_param("train_tokens", len(train_tensor))
         val_tensor = documents_tensor[split:]
         print(f"The val set has: {len(val_tensor)/1e6:.1f} M tokens")
+        mlflow.log_param("val_tokens", len(val_tensor))
     else:
         train_tensor = documents_tensor
 
@@ -147,7 +259,9 @@ def train_model(model: torch.nn.Module,
                 train_tensor: torch.Tensor,
                 val_tensor: torch.Tensor, 
                 batchsize: int, 
-                context: int) -> torch.nn.Module:
+                context: int,
+                eval_prompt: str
+                ) -> torch.nn.Module:
     """
     Train the model.
 
@@ -172,10 +286,17 @@ def train_model(model: torch.nn.Module,
         optimizer.step()
         if steps % (epochs / 10) == 0:
             print(f"epoch: {steps} , train loss: {loss.item():0.3f}")
+            mlflow.log_metric("train_loss", loss.item())
 
-            if  val_tensor is not None:
+            if val_tensor is not None:
                 val_loss = eval_model(model, val_tensor, batchsize, context, eval_epochs)
             print(f"epoch: {steps} , val loss: {val_loss:0.3f} \n ================")
+            mlflow.log_metric("val_loss", val_loss.item())
+            response = model_generate(model, eval_prompt, 50)
+            # https://mlflow.org/docs/latest/python_api/mlflow.llm.html#mlflow.llm.log_predictions
+            mlflow.llm.log_predictions([{
+                "epoch": steps,
+            }], [response], [eval_prompt])
 
     return model
 
@@ -316,3 +437,21 @@ def parse_model_filename(filename):
         }
     else:
         return None
+
+def model_generate(model, prompt, max_tokens):
+    """
+    Generate a response using the provided model and prompt.
+
+    Args:
+        model (nn.Module): Trained GPT model.
+        prompt (str): Input prompt for generating the response.
+        max_tokens (int): Maximum number of tokens to generate.
+
+    Returns:
+        str: Generated response.
+    """
+    prompt_encoded = encode_input(tokenizer, prompt, context, device)
+    response = generate_and_show(model, prompt_encoded, max_tokens)
+    response = response[0].split(prompt)[-1]
+
+    return response

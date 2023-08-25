@@ -8,15 +8,14 @@ from model_training.utils import (parse_model_filename,
                                   encode_input,
                                   load_model,
                                   tokenizer,
-                                  context)
+                                  context,
+                                  device)
 
 
-pages = ["nanogpt", "model_stats"]
 datasets = ("kjv", "shakespare_tiny", "shakespare_plays")
-favicon_path = "pages/imgs/nano-gpt.ico"
-hero_url = "pages/imgs/nano-pgt-hero.jpg"
+favicon_path = "assets/imgs/nano-gpt.ico"
+hero_url = "assets/imgs/nano-pgt-hero.jpg"
 st.set_page_config(page_title="NanoGPT", page_icon=favicon_path)
-device = 'cpu'
 
 def get_checkpoints(dataset: str) -> list[str]:
     """
@@ -118,11 +117,6 @@ def prompt_model(model, verbosity):
     Args:
         model (nn.Module): Trained GPT model.
     """
-
-    st.session_state.prompt_state = {
-        "max_tokens": verbosity
-    }
-
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -138,21 +132,13 @@ def prompt_model(model, verbosity):
 
         with st.chat_message("nanoGPT", avatar="🤖"):
             message_placeholder = st.empty()
-            full_response = ""
-            nano_gpt_response = prompt
-            keep_generating = True
-            
-            while keep_generating: 
-                nano_gpt_response = model_generate(model, nano_gpt_response, verbosity)
-                for chunk in nano_gpt_response.split():
-                    full_response += chunk + " "
-                    time.sleep(0.05)
-                    message_placeholder.markdown(full_response + "▌")
-                message_placeholder.markdown(full_response)
-                
-                if len(full_response) > st.session_state.prompt_state['max_tokens']:
-                    st.session_state.prompt_state['max_tokens'] = random.randint(50, verbosity)
-                    keep_generating = False
+            full_response = ""            
+            nano_gpt_response = model_generate(model, prompt, verbosity)
+            for chunk in nano_gpt_response.split():
+                full_response += chunk + " "
+                time.sleep(0.05)
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
              
         st.session_state.messages.append({"role": "nanoGPT", "content": full_response, "avatar": "🤖"})
 

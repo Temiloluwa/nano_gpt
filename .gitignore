@@ -2,3 +2,5 @@
 nano-gpt-env
 __pycache__
 *.pth
+mlartifacts
+model_training/models
