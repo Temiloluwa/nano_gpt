@@ -49,6 +49,8 @@ n_blocks = config['n_blocks']
 epochs = config['epochs']
 eval_epochs = config['eval_epochs']
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+if config.get('device', None):
+    device = config['device']
 
 ######################################################
 
