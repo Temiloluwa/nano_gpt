@@ -49,6 +49,7 @@ n_blocks = config['n_blocks']
 epochs = config['epochs']
 eval_epochs = config['eval_epochs']
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 ######################################################
 
 def get_data(tokenizer, processed_file_path:str, train_split:float=None):
@@ -216,7 +217,7 @@ def generate_and_show(model, idx, max_new_tokens):
     return [tokenizer.decode(x.tolist()) for x in out]
 
 
-def encode_input(tokenizer, input_string, context):
+def encode_input(tokenizer, input_string, context, device):
     """
     Encode an input string using the tokenizer.
 
@@ -287,7 +288,7 @@ def parse_model_filename(filename):
     matches = re.match(pattern, filename)
 
     if matches:
-        current_datetime, _, dataset, vocab_size, embedding_dims, n_heads, dropout, n_blocks, context, lr, epochs = matches.groups()
+        the_date, the_time, dataset, vocab_size, embedding_dims, n_heads, dropout, n_blocks, context, lr, epochs = matches.groups()
         
         embedding_dims = int(embedding_dims)
         n_heads = int(n_heads)
@@ -296,9 +297,11 @@ def parse_model_filename(filename):
         context = int(context)
         lr = float(lr.replace('p', '.'))
         epochs = int(epochs)
+        vocab_size = int(vocab_size)
 
         return {
-            "current_datetime": current_datetime,
+            "the_date": the_date,
+            "the_time": the_time,
             "dataset": dataset,
             "vocab_size": vocab_size,
             "embedding_dims": embedding_dims,
@@ -309,3 +312,5 @@ def parse_model_filename(filename):
             "lr": lr,
             "epochs": epochs
         }
+    else:
+        return None

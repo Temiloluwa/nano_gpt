@@ -17,4 +17,4 @@ dropout: 0.2
 n_heads: 6
 n_blocks: 6
 epochs: 1
-eval_epochs: 1
+eval_epochs: 100
