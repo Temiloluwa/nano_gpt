@@ -2,8 +2,10 @@ import torch
 import torch.nn.functional as F
 import yaml
 import numpy as np
+import os
+import re
 from typing import Tuple
-from data_prep import *
+from .data_prep import *
 
 
 def load_hyperparameters_from_yaml(yaml_filename):
@@ -21,12 +23,13 @@ def load_hyperparameters_from_yaml(yaml_filename):
 
     return hyperparameters
 
-config = load_hyperparameters_from_yaml('config.yaml')
+config = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml')
+config = load_hyperparameters_from_yaml(config)
 #### DATA PREP ##############################
 dataset = config['dataset']
-input_file_path = f'data/raw/{dataset}.txt'
-processed_file_path = f'data/processed/{dataset}.txt'
-vocab_file = f'data/vocab/{dataset}.json'
+input_file_path = os.path.join(os.path.dirname(__file__), f'data/raw/{dataset}.txt')
+processed_file_path = os.path.join(os.path.dirname(__file__), f'data/processed/{dataset}.txt') 
+vocab_file = os.path.join(os.path.dirname(__file__), f'data/vocab/{dataset}.json') 
 process_fn = config['process_fn'][dataset] # get function as string
 eval(f'{process_fn}(input_file_path, processed_file_path, dataset)') # evaluate the preprocessor
 tokenizer = Tokenizer(processed_file_path, vocab_file)
@@ -260,3 +263,49 @@ def load_model(model, model_path):
     print(f"Model loaded from {model_path}")
     return model
 
+
+def parse_model_filename(filename):
+    """
+    Parse a model filename to extract hyperparameter values.
+
+    Args:
+        filename (str): The model filename to be parsed.
+
+    Returns:
+        dict or None: A dictionary containing extracted hyperparameter values if the filename matches the expected pattern.
+                      None if no match is found.
+
+    Example:
+        filename = "model_training/models/model_20230825_135640_ds_shakespeare_tiny_voc_65_emb384_hd6_dp_0p2_blk6_cxt256_lr0p0003_eph1.pth"
+        parsed_values = parse_model_filename(filename)
+        if parsed_values:
+            print(parsed_values)
+        else:
+            print("No match found")
+    """
+    pattern = r"model_(\d+)_(\d+)_ds_(\w+)_voc_(\d+)_emb(\d+)_hd(\d+)_dp_([\dp]+)_blk(\d+)_cxt(\d+)_lr([\dp]+)_eph(\d+)\.pth"
+    matches = re.match(pattern, filename)
+
+    if matches:
+        current_datetime, _, dataset, vocab_size, embedding_dims, n_heads, dropout, n_blocks, context, lr, epochs = matches.groups()
+        
+        embedding_dims = int(embedding_dims)
+        n_heads = int(n_heads)
+        dropout = float(dropout.replace('p', '.'))
+        n_blocks = int(n_blocks)
+        context = int(context)
+        lr = float(lr.replace('p', '.'))
+        epochs = int(epochs)
+
+        return {
+            "current_datetime": current_datetime,
+            "dataset": dataset,
+            "vocab_size": vocab_size,
+            "embedding_dims": embedding_dims,
+            "n_heads": n_heads,
+            "dropout": dropout,
+            "n_blocks": n_blocks,
+            "context": context,
+            "lr": lr,
+            "epochs": epochs
+        }

@@ -7,7 +7,7 @@ def process_default(
     Does Nothing. Just loads the data into
     preprocessed file
     """
-    with open(input_file_path, 'r') as f:
+    with open(input_file_path, 'r', encoding='utf-8-sig') as f:
         lines = f.read()
 
     # Write the processed text to the output file

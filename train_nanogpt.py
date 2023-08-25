@@ -2,8 +2,7 @@ import datetime
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import *
-
+from model_training.utils import *
 
 class Head(nn.Module):
     """
@@ -190,8 +189,6 @@ class NanoGPTModel(nn.Module):
         return logits, loss
 
 
-
-
 if __name__ == "__main__":
     train_data, val_data = get_data(tokenizer, processed_file_path, train_split)
     gpt_model = NanoGPTModel(vocab_size, 
@@ -202,6 +199,6 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(gpt_model.parameters(), lr=lr)
     gpt_model = train_model(gpt_model, optimizer, train_data, val_data,  batchsize, context)
     current_datetime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_path = f"models/model_{current_datetime}_ds_{dataset}_batch{batchsize}_context{context}_heads{n_heads}_embed{embedding_dims}_lr{lr}_blocks{n_blocks}_epochs{str(epochs)}.pth"
+    save_path = f"model_training/models/model_{current_datetime}_ds_{dataset}_voc_{vocab_size}_emb{embedding_dims}_hd{n_heads}_dp_{str(dropout).replace('.', 'p')}_blk{n_blocks}_cxt{context}_lr{str(lr).replace('.', 'p')}_eph{str(epochs)}.pth"
     save_model(gpt_model, save_path)
     print("Saved model @", save_path)
