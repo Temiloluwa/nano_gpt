@@ -1,3 +1,4 @@
 .vscode
 nano-gpt-env
 __pycache__
+*.pth

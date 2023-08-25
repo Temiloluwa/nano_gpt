@@ -1,0 +1,20 @@
+## Data Prep ##
+dataset: shakespare_tiny
+process_fn:
+  kjv: process_kjv
+  shakespare_tiny:  process_default
+  shakespare_plays: process_default
+  
+
+## Hyper Params ##
+train_split: 0.1
+batchsize: 64
+context: 256
+n_heads:  8
+embedding_dims: 384
+lr: 0.0003
+dropout: 0.2
+n_heads: 6
+n_blocks: 6
+epochs: 1
+eval_epochs: 1
