@@ -4,3 +4,4 @@ __pycache__
 *.pth
 mlartifacts
 model_training/models
+model_training/data/mlflow
