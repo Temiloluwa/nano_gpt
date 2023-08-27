@@ -1,3 +1,2 @@
-from .prep_kjv import process_kjv 
-from .prep_default import process_default
+from .prep_data import *
 from .tokenizer import Tokenizer

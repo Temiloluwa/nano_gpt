@@ -1,5 +1,5 @@
 ## Data Prep ##
-dataset: shakespare_plays
+dataset: shakespare_plays # set the dataset you wanna train 
 process_fn:
   kjv: process_kjv
   shakespare_tiny:  process_default
@@ -18,4 +18,4 @@ n_heads: 6
 n_blocks: 6
 epochs: 5000
 eval_epochs: 100
-#device: 'cpu'
+#device: 'cpu' # Explicitly set the pytorch device ('cpu' or 'cuda')
